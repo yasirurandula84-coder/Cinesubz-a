@@ -6,33 +6,35 @@ const PORT = process.env.PORT || 3000;
 
 app.set('json spaces', 2);
 
-const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
-};
+const getHeaders = () => ({
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Referer': 'https://cinesubz.lk/',
+    'Connection': 'keep-alive'
+});
 
-// --- SEARCH (රිසල්ට් 10+ එන විදියට හදපු සර්ච් එක) ---
+// --- SEARCH ---
 app.get('/search', async (req, res) => {
     const query = req.query.q;
-    if (!query) return res.json({ status: false, msg: "ෆිල්ම් එකේ නම ඇතුළත් කරන්න (?q=movie)" });
+    if (!query) return res.json({ status: false, msg: "Please add ?q=movie_name" });
 
     try {
         const searchUrl = `https://cinesubz.lk/?s=${encodeURIComponent(query)}`;
-        const { data } = await axios.get(searchUrl, { headers });
+        const { data } = await axios.get(searchUrl, { headers: getHeaders(), timeout: 15000 });
         const $ = cheerio.load(data);
         const results = [];
 
-        // සයිට් එකේ ෆිල්ම් කාඩ්ස් අල්ලගන්න පුළුවන් හැම selector එකක්ම මෙතන තියෙනවා
-        $('article, .result-item, .post-item, .item').each((i, el) => {
-            const titleElement = $(el).find('h2.entry-title a, h2.title a, .title a, h3 a').first();
-            const title = titleElement.text().trim();
-            const url = titleElement.attr('href');
-            const img = $(el).find('img').attr('src');
+        // Cinesubz වල search result එකේ තියෙන 'article' tags ඔක්කොම ලූප් කරනවා
+        $('article').each((i, el) => {
+            const title = $(el).find('h2.entry-title a, .title a').text().trim();
+            const url = $(el).find('h2.entry-title a, .title a').attr('href');
+            let img = $(el).find('img').attr('src') || $(el).find('img').attr('data-src');
 
             if (title && url) {
                 results.push({
                     title: title,
                     url: url,
-                    img: img || "https://dummyimage.com/600x400/000/fff&text=No+Image"
+                    img: img || "https://dummyimage.com/600x400/000/fff&text=No+Poster"
                 });
             }
         });
@@ -48,24 +50,23 @@ app.get('/search', async (req, res) => {
     }
 });
 
-// --- GET LINKS (ලින්ක් ගන්න කොටස) ---
+// --- GET DOWNLOAD LINKS ---
 app.get('/getlinks', async (req, res) => {
     const movieUrl = req.query.url;
-    if (!movieUrl) return res.json({ status: false, msg: "URL එකක් අවශ්‍යයි (?url=link)" });
+    if (!movieUrl) return res.json({ status: false, msg: "Please add ?url=movie_link" });
 
     try {
-        const { data } = await axios.get(movieUrl, { headers });
+        const { data } = await axios.get(movieUrl, { headers: getHeaders() });
         const $ = cheerio.load(data);
         const title = $('h1.entry-title, .data h1').first().text().trim();
         const dlLinks = [];
 
-        // Pixeldrain ලින්ක් සහ කොලිටිය හරියටම අල්ලගන්නවා
+        // Pixeldrain ලින්ක් විතරක් ෆිල්ටර් කරනවා
         $('a').each((i, el) => {
             const link = $(el).attr('href') || "";
             const text = $(el).text().trim();
 
             if (link.includes('pixeldrain.com')) {
-                // සමහර වෙලාවට ලින්ක් එකේ කොලිටිය තියෙන්නේ බටන් එකේ නමේ
                 dlLinks.push({
                     quality: text || "Download",
                     link: link
