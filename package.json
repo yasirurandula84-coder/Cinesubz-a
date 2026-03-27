@@ -1,12 +1,16 @@
 {
   "name": "cinesubz-api",
   "version": "1.0.0",
+  "description": "Cinesubz Movie Scraper API",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "puppeteer": "^21.0.0"
+    "puppeteer": "^21.4.1"
+  },
+  "engines": {
+    "node": ">=16"
   }
 }
